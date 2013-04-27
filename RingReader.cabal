@@ -4,7 +4,7 @@ synopsis:       a ring buffer output filter
 author:         Edward Langley
 license:        MIT
 build-type:     Simple
-cabal-version:  >= 1.16
+cabal-version:  >= 1.10
 
 executable ring_reader
   build-depends:  cmdargs,hscurses,base,transformers,mtl,process
