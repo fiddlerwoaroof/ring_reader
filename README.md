@@ -1,5 +1,8 @@
 # Ring Reader -- a pager-like "ring buffer"
 
+[![Build Status](https://travis-ci.org/fiddlerwoaroof/ring_reader.png)](https://travis-ci.org/fiddlerwoaroof/ring_reader)
+
+
 This program takes a command line to run and prints the output of that command
 to the screen.  When the output reaches the bottom of the screen, it wraps to 
 the top, thus saving scrollback memory. It was inspired by wanting to have a way
