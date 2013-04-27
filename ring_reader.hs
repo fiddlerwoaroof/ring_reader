@@ -6,7 +6,6 @@ import System.Environment
 import System.Console.CmdArgs
 
 import Control.Concurrent
-import Control.Error
 
 import qualified Control.Exception as Exception
 import Control.Monad
@@ -43,7 +42,7 @@ b lim filein cols infinitep = do
          then do
             if infinitep
                then do threadDelay 100
-               else do return ()
+               else do threadDelay 100
          else do
             line <- hGetLine filein
             
@@ -84,7 +83,7 @@ allocate = do
 deallocate = do
    HSCurses.endWin
 
-work run infinitep = do
+work enc run infinitep = do
    let (runprog:args) = run
    (rows, cols) <- HSCurses.scrSize
    (_, Just hout, _, _) <-
@@ -92,7 +91,8 @@ work run infinitep = do
          std_out=CreatePipe
       }
 
-   enc <- mkTextEncoding "ISO-8859-1"
+   -- enc <- mkTextEncoding "ISO-8859-1"
+   enc <- mkTextEncoding enc
    hSetEncoding hout enc
 
    b rows hout cols infinitep
@@ -101,12 +101,14 @@ work run infinitep = do
 
 data MyOptions = MyOptions {
    infinite :: Bool,
-   run :: [String]
+   run :: [String],
+   encoding :: String
 } deriving (Data, Typeable, Show, Eq)
 
 myProgOpts :: MyOptions
 myProgOpts = MyOptions {
    infinite = def &= name "i",
+   encoding = "UTF-8" &= name "e",
    run = def &= args
 }
 
@@ -120,7 +122,7 @@ main = do
 
 optionHandler :: MyOptions -> IO ()
 optionHandler opts@MyOptions{..} = do
-   Exception.bracket_ allocate deallocate (work run infinite)
+   Exception.bracket_ allocate deallocate (work encoding run infinite)
 
 -- mainloop = runST $ do
 --       n <- newSTRef 0
