@@ -1,0 +1,5 @@
+*.hi
+dist
+*.o
+tmp
+[a-z]
