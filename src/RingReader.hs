@@ -1,9 +1,13 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
 
+module Main where
+
 import System.IO
 import System.Process
 import System.Environment
 import System.Console.CmdArgs
+import System.Exit
+
 
 import Control.Concurrent
 
@@ -122,6 +126,7 @@ main = do
 
 optionHandler :: MyOptions -> IO ()
 optionHandler opts@MyOptions{..} = do
+   when (null run) $ putStrLn "No Command to Run!" >> exitWith (ExitFailure 1)
    Exception.bracket_ allocate deallocate (work encoding run infinite)
 
 -- mainloop = runST $ do
