@@ -25,11 +25,12 @@ a = runST $ do
 
 mvWAddStr2 :: HSCurses.Window -> Int -> Int -> String -> IO ()
 mvWAddStr2 w y x s = do
-    (rows, cols) <- HSCurses.scrSize
-    when ((y >= 0) && (x >=0) && (x < cols) && (y < rows)) $ do
+  (rows, cols) <- HSCurses.scrSize
+  when ((y >= 0) && (x >= 0) && (x < cols) && (y < rows)) $
       let space = cols - x
-      let s2 = take space s
-      HSCurses.mvWAddStr w y x s2
+          s2 = take space s
+       in
+       HSCurses.mvWAddStr w y x s2
 
 dispatch :: HSCurses.Key -> IO ()
 dispatch _ = return ()
@@ -38,12 +39,9 @@ mainLoop :: Int -> Handle -> Int -> Bool -> IO ()
 mainLoop lim filein cols infinitep = do
   n <- stToIO $ newSTRef 1
   when True $ forever $ do
-    let getX = stToIO $ readSTRef n
-    x <- getX
-    stToIO $ writeSTRef n (x+1)
-    nextX <- getX
-    let handleInputp = not infinitep && ( nextX `mod` lim == 0)
+    (x,nextX) <- initialize n
 
+    let handleInputp = not infinitep && ( nextX `mod` lim == 0)
     eofp <- atEnd
     if eofp then threadDelay 100
       else do
@@ -52,6 +50,13 @@ mainLoop lim filein cols infinitep = do
 
     HSCurses.refresh
   where
+    initialize n = do
+      let getX = stToIO $ readSTRef n
+      x <- getX
+      stToIO $ writeSTRef n (x+1)
+      nextX <- getX
+      return (x,nextX)
+
     atEnd = hIsEOF filein
     getLineFromFile = hGetLine filein
     showDivider x lim =

@@ -4,3 +4,4 @@ dist
 tmp
 [a-z]
 .stack-work
+.*.sw?
