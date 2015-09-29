@@ -18,11 +18,6 @@ import Data.STRef
 import qualified UI.HSCurses.Curses as HSCurses
 import qualified UI.HSCurses.CursesHelper as HSCursesHelper
 
-a :: Integer
-a = runST $ do
-  n <- newSTRef 0
-  readSTRef n
-
 mvWAddStr2 :: HSCurses.Window -> Int -> Int -> String -> IO ()
 mvWAddStr2 w y x s = do
   (rows, cols) <- HSCurses.scrSize
@@ -35,49 +30,45 @@ mvWAddStr2 w y x s = do
 dispatch :: HSCurses.Key -> IO ()
 dispatch _ = return ()
 
+(--->) :: Monad m => (a -> m b) -> (a -> m b) -> a -> m b
+(--->) = liftM2 (>>)
+
+passTo :: a -> (a -> b) -> b
+passTo = flip ($)
+
+
 mainLoop :: Int -> Handle -> Int -> Bool -> IO ()
-mainLoop lim filein cols infinitep = do
-  n <- stToIO $ newSTRef 1
-  when True $ forever $ do
-    (x,nextX) <- initialize n
-
-    let handleInputp = not infinitep && ( nextX `mod` lim == 0)
-    eofp <- atEnd
-    if eofp then threadDelay 100
-      else do
-        displayNextLine x
-        handleInput handleInputp
-
-    HSCurses.refresh
+mainLoop lim filein cols infinitep = stToIO (newSTRef 1) >>= loop
   where
-    initialize n = do
-      let getX = stToIO $ readSTRef n
-      x <- getX
-      stToIO $ writeSTRef n (x+1)
-      nextX <- getX
-      return (x,nextX)
+    loop = discardResult . forever . wrapCode step HSCurses.refresh . stToIO . initialize
 
+    initialize n = readSTRef n >>= incSTRef n `keepOldBinding` addSTRefToTuple n
+
+    step (x,nextX) = discardResult $ do
+      let handleInputp = not infinitep && ( nextX `mod` lim == 0)
+      eofp <- atEnd
+      if eofp then threadDelay 100
+              else do
+                line <- hGetLine filein
+                x `passTo` (clearLine ---> showLine line ---> showDivider)
+                handleInput handleInputp
+
+    clearLine x = moveAndAddString (getLinePos x) 0 $ replicate (cols+1) ' ' -- overwrite line
+    showLine  line x = moveAndAddString (getLinePos x) 0 $ show x ++ (' ':line)   -- show new line
+    showDivider x = moveAndAddString ( getLinePos (x+1) ) 0 div
+
+    addSTRefToTuple n = flippedLiftM (readSTRef n) . (,)
     atEnd = hIsEOF filein
-    getLineFromFile = hGetLine filein
-    showDivider x lim =
-      moveAndAddString ( ((x+1)`mod`lim) - 1) 0
+    discardResult = when True
+    div = marker ++ replicate (cols - length marker + 1) '-'
+    flippedLiftM = flip liftM
+    getLinePos = subtract 1 . (`mod` lim)
     handleInput handleInputp = when handleInputp $ HSCurses.getCh >>= dispatch
+    incSTRef n = writeSTRef n . (+ 1)
+    keepOldBinding = liftM2 (>>)
+    marker = "--- break ---"
     moveAndAddString = mvWAddStr2 HSCurses.stdScr
-
-    displayNextLine x = do
-      let xModLim = x `mod` lim - 1
-      let marker = "--- break ---"
-      let divider = marker ++ replicate (cols - length marker + 1) '-' :: String
-      let clearLine x cols line = moveAndAddString xModLim 0 $ replicate (cols+1) ' ' -- overwrite line
-      let showLine  x cols line = moveAndAddString xModLim 0 $ show x ++ line   -- show new line
-
-      line <- getLineFromFile
-      let line = ' ':line
-
-      clearLine x cols line
-      showLine x cols line
-      showDivider x lim divider
-
+    wrapCode run finalize init = (init >>= run) >> finalize
 
 allocate :: IO ()
 allocate = do
@@ -140,18 +131,3 @@ main = do
 
 optionHandler :: MyOptions -> IO ()
 optionHandler opts@MyOptions{..} = Exception.bracket_ allocate deallocate (work encoding run infinite stream)
-
--- mainloop = runST $ do
---       n <- newSTRef 0
---       a <- getLine
---       x <- readSTRef n
---
---       putStrLn (show x) ++ a
-
---      forever $ numberLines n
---    where
---       numberLines n = do
---          line <- liftIO getLine
---          n' <- readSTRef n
---          putStrLn (show n') ++ ('\t':line)
---          modifySTRef n (+1)
