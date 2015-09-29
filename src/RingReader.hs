@@ -45,7 +45,7 @@ mainLoop lim filein cols infinitep = stToIO (newSTRef 1) >>= loop
     initialize n = readSTRef n >>= incSTRef n `keepOldBinding` addSTRefToTuple n
 
     step (x,nextX) = discardResult $ do
-      let handleInputp = not infinitep && ( nextX `mod` lim == 0)
+      let handleInputp = filein /= stdin && not infinitep && ( nextX `mod` lim == 0)
       eofp <- atEnd
       if eofp then threadDelay 100
               else do
@@ -85,10 +85,9 @@ allocate = do
 deallocate :: IO ()
 deallocate = HSCurses.endWin
 
-work :: String -> [FilePath] -> Bool -> String -> IO ()
-work enc run infinitep stream = do
+startTask :: String -> [FilePath] -> IO (Handle,Handle)
+startTask enc run = do
    let (runprog:myArgs) = run
-   (rows, cols) <- HSCurses.scrSize
    (_, Just hout, Just herr, _) <-
       createProcess (proc runprog myArgs) {
          std_out=CreatePipe,
@@ -99,10 +98,23 @@ work enc run infinitep stream = do
    encoding <- mkTextEncoding enc
    hSetEncoding hout encoding
    hSetEncoding herr encoding
+   return (hout,herr)
 
-   case stream of
-      "stdout" -> mainLoop rows hout cols infinitep
-      _        -> mainLoop rows herr cols infinitep
+getStream :: String -> String -> [FilePath] -> IO Handle
+getStream stream enc run = do
+  (hout,herr) <- startTask enc run
+  return $ case stream of
+    "stdout" -> hout
+    _        -> herr
+
+
+work :: String -> [FilePath] -> Bool -> String -> IO ()
+work enc run infinitep stream = do
+   (rows, cols) <- HSCurses.scrSize
+   stream <- case run of
+               [] -> return stdin
+               _ -> getStream stream enc run
+   mainLoop rows stream cols infinitep
    return ()
 
 
