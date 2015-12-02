@@ -27,10 +27,11 @@ mvWAddStr2 w y x s = do
        in
        HSCurses.mvWAddStr w y x s2
 
+-- This is currently a stub
 dispatch :: HSCurses.Key -> IO ()
 dispatch _ = return ()
 
-(--->) :: Monad m => (a -> m b) -> (a -> m b) -> a -> m b
+(--->) :: Monad m => (a -> m b) -> (a -> m c) -> a -> m c
 (--->) = liftM2 (>>)
 
 passTo :: a -> (a -> b) -> b
@@ -42,7 +43,7 @@ mainLoop lim filein cols infinitep = stToIO (newSTRef 1) >>= loop
   where
     loop = discardResult . forever . wrapCode step HSCurses.refresh . stToIO . initialize
 
-    initialize n = readSTRef n >>= incSTRef n `keepOldBinding` addSTRefToTuple n
+    initialize n = readSTRef n >>= (incSTRef n ---> addSTRefToTuple n)
 
     step (x,nextX) = discardResult $ do
       let handleInputp = filein /= stdin && not infinitep && ( nextX `mod` lim == 0)
@@ -65,7 +66,6 @@ mainLoop lim filein cols infinitep = stToIO (newSTRef 1) >>= loop
     getLinePos = subtract 1 . (`mod` lim)
     handleInput handleInputp = when handleInputp $ HSCurses.getCh >>= dispatch
     incSTRef n = writeSTRef n . (+ 1)
-    keepOldBinding = liftM2 (>>)
     marker = "--- break ---"
     moveAndAddString = mvWAddStr2 HSCurses.stdScr
     wrapCode run finalize init = (init >>= run) >> finalize
